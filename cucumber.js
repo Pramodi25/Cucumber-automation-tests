@@ -4,7 +4,7 @@ module.exports = {
         require: ["src/**/*.js"],
         format: [
             "progress",
-            "json:reports/cucumber-report.json"
+            "html:reports/cucumber.html"
         ],
         publishQuiet: true,
     }

@@ -1,8 +1,11 @@
-const { Before, After, Status } = require("@cucumber/cucumber");
+const { Before, After, setDefaultTimeout, Status } = require("@cucumber/cucumber");
 const { chromium } = require("playwright");
 
+setDefaultTimeout(60 * 1000); // 60 seconds
+
 Before(async function () {
-    this.browser = await chromium.launch({ headless: process.env.HEADLESS !== "false" });
+    const headless = process.env.HEADLESS !== "false";
+    this.browser = await chromium.launch({ headless });
     this.context = await this.browser.newContext();
     this.page = await this.context.newPage();
 });
