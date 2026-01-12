@@ -1,5 +1,8 @@
-Feature: Login
+Feature: Staff Login
 
   @smoke
-  Scenario: Open Chekku login page
-    Given I open the Chekku login page
+  Scenario: Staff usser can login to Chekku dashboard
+    Given I am on the chekku login page
+    When I enter valid staff credentials
+    And I click on the login button
+    Then I should be redirected to the chekku dashboard

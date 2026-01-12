@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
 
+#env
+.env
+
 # Reports / test outputs (you have /reports)
 reports/
 test-results/

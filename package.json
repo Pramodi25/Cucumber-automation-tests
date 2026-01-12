@@ -98,12 +98,21 @@
   "devDependencies": {
     "@cucumber/cucumber": "^12.5.0",
     "@playwright/test": "^1.57.0",
+    "dotenv": "^17.2.3",
+    "multiple-cucumber-html-reporter": "^3.9.3",
     "playwright": "^1.57.0"
   },
   "scripts": {
     "test": "cucumber-js",
     "test:headed": "HEADLESS=false cucumber-js",
-    "smoke": "cucumber-js --tags @smoke"
+    "report": "node scripts/generate-report.js",
+    "test:headed:report": "HEADLESS=false cucumber-js && node scripts/generate-report.js"
+  },
+  "scripts": {
+    "test": "node -r dotenv/config ./node_modules/.bin/cucumber-js",
+    "test:headed": "HEADLESS=false node -r dotenv/config ./node_modules/.bin/cucumber-js",
+    "report": "node scripts/generate-report.js",
+    "test:headed:report": "HEADLESS=false node -r dotenv/config ./node_modules/.bin/cucumber-js && node scripts/generate-report.js"
   },
   "repository": {
     "type": "git",
