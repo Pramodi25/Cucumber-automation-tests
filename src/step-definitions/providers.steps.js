@@ -1,4 +1,5 @@
 const { When, Then } = require("@cucumber/cucumber");
+const { expect } = require("@playwright/test");
 const { ProvidersPage } = require("../pages/ProvidersPage");
 
 Then("I should see the Providers page", async function () {
@@ -18,9 +19,76 @@ Then("I should see the Providers filters", async function () {
     await providersPage.coreTradeTypeLabel.waitFor({ state: "visible", timeout: 10000 });
 });
 
+// --------------------
+// Filter steps
+// --------------------
+
+Then("the Sub Trade Type filter should be disabled", async function () {
+    const providersPage = new ProvidersPage(this.page);
+    await expect(providersPage.subTradeType).toBeDisabled();
+});
+
+When("I select Core Trade Type as {string}", async function (coreTradeType) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.selectDropdownByLabel(providersPage.coreTradeType, coreTradeType);
+});
+
+Then("the Sub Trade Type filter should be enabled", async function () {
+    const providersPage = new ProvidersPage(this.page);
+    await expect(providersPage.subTradeType).toBeEnabled();
+});
+
+When("I select Sub Trade Type as {string}", async function (subTradeType) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.selectDropdownByLabel(providersPage.subTradeType, subTradeType);
+});
+
+When("I select Status as {string}", async function (status) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.selectDropdownByLabel(providersPage.status, status);
+});
+
+When("I set Start Date as {string}", async function (startDate) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.startDate.fill(startDate);
+});
+
+When("I set End Date as {string}", async function (endDate) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.endDate.fill(endDate);
+});
+
+When("I apply provider filters", async function () {
+    const providersPage = new ProvidersPage(this.page);
+
+    // Store baseline before applying filters (optional but useful)
+    this.providersInfoBeforeFilter = await providersPage.getInfoText();
+
+    await providersPage.applyFilters();
+});
+
+When("I clear provider filters", async function () {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.clearFilters();
+});
+
+Then("provider filters should be reset", async function () {
+    const providersPage = new ProvidersPage(this.page);
+
+    // These work if default value is empty string.
+    await expect(providersPage.coreTradeType).toHaveValue("");
+    await expect(providersPage.status).toHaveValue("");
+    await expect(providersPage.startDate).toHaveValue("");
+    await expect(providersPage.endDate).toHaveValue("");
+});
+
 //Search steps
 When("I search providers for {string}", async function (term) {
     const providersPage = new ProvidersPage(this.page);
+
+    // ✅ store baseline before searching (used by "unfiltered results" step)
+    this.providersInfoBeforeSearch = await providersPage.getInfoText();
+
     await providersPage.search(term);
 });
 
