@@ -132,3 +132,23 @@ Then("I should see the Provider profile page", async function () {
     const profilePage = new ProviderProfilePage(this.page);
     await profilePage.waitForLoaded();
 });
+
+Then("provider profile top buttons should navigate correctly", async function () {
+    const profilePage = new ProviderProfilePage(this.page);
+    await profilePage.waitForLoaded();
+
+    // ✅ Quick debug: check if links open new tab
+    console.log("Compliance target:", await profilePage.btnCompliance.getAttribute("target"));
+    console.log("Opportunities target:", await profilePage.btnOpportunities.getAttribute("target"));
+    console.log("Subscription target:", await profilePage.btnSubscription.getAttribute("target"));
+    console.log("Notes target:", await profilePage.btnNotes.getAttribute("target"));
+    console.log("History target:", await profilePage.btnHistory.getAttribute("target"));
+
+    // Extract providerId from URL
+    const url = this.page.url();
+    const match = url.match(/\/staff\/provider_profile\/(\d+)/);
+    if (!match) throw new Error(`Could not extract providerId from URL: ${url}`);
+    const providerId = match[1];
+
+    await profilePage.assertTopNavLinks(providerId);
+});

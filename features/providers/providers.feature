@@ -51,3 +51,14 @@ Feature: Providers navigation
     When I search provider name "john.smith"
     And I open provider profile for "john.smith"
     Then I should see the Provider profile page
+
+    @profile
+    Scenario: Provider profile top buttons navigate correctly
+      Given I am on the Chekku login screen
+      When I login with staff user
+      And I click Providers from the sidebar
+      Then I should see the Providers page
+      When I search provider name "john.smith"
+      And I open provider profile for "john.smith"
+      Then I should see the Provider profile page
+      Then provider profile top buttons should navigate correctly
