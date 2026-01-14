@@ -128,6 +128,39 @@ class ProvidersPage {
         }, { timeout: 15000 }).not.toMatch(/loading|processing/);
     }
 
+    async openProviderProfileFor(name) {
+        const wanted = name.toLowerCase();
+        const rows = this.page.locator("#datatable tbody tr");
+        const count = await rows.count();
+        expect(count).toBeGreaterThan(0);
+
+        for (let i = 0; i < count; i++) {
+            const row = rows.nth(i);
+            const txt = ((await row.innerText()) || "").toLowerCase();
+
+            if (!txt.includes(wanted)) continue;
+
+            // ✅ Choose the correct "View" by URL
+            const profileLink = row.locator('a[href*="/staff/provider_profile/"]').first();
+
+            if (await profileLink.count()) {
+                await expect(profileLink).toBeVisible({ timeout: 15000 });
+                await profileLink.click();
+                return;
+            }
+
+            // Helpful error if found row but no profile link
+            const links = await row.locator("a").evaluateAll(as =>
+                as.map(a => ({ text: (a.textContent || "").trim(), href: a.getAttribute("href") }))
+            );
+            throw new Error(
+                `Found provider row for "${name}" but no profile link. Links in row: ${JSON.stringify(links)}`
+            );
+        }
+
+        throw new Error(`No provider row found containing "${name}"`);
+    }
+
     async clearSearch() {
         await expect(this.searchInput).toBeVisible({ timeout: 15000 });
         await this.searchInput.fill("");

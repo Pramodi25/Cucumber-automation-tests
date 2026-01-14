@@ -1,6 +1,7 @@
 const { When, Then } = require("@cucumber/cucumber");
 const { expect } = require("@playwright/test");
 const { ProvidersPage } = require("../pages/ProvidersPage");
+const { ProviderProfilePage } = require("../pages/ProviderProfilePage");
 
 Then("I should see the Providers page", async function () {
     const providersPage = new ProvidersPage(this.page);
@@ -114,4 +115,20 @@ Then("the providers table should show unfiltered results", async function () {
             );
         }
     }
+});
+
+//Provider profile steps
+When("I search provider name {string}", async function (name) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.search(name);
+});
+
+When("I open provider profile for {string}", async function (name) {
+    const providersPage = new ProvidersPage(this.page);
+    await providersPage.openProviderProfileFor(name);
+});
+
+Then("I should see the Provider profile page", async function () {
+    const profilePage = new ProviderProfilePage(this.page);
+    await profilePage.waitForLoaded();
 });

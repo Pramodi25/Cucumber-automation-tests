@@ -41,3 +41,13 @@ Feature: Providers navigation
     When I apply provider filters
     When I clear provider filters
     Then provider filters should be reset
+
+  @profile
+  Scenario: Search provider and open profile
+    Given I am on the Chekku login screen
+    When I login with staff user
+    And I click Providers from the sidebar
+    Then I should see the Providers page
+    When I search provider name "john.smith"
+    And I open provider profile for "john.smith"
+    Then I should see the Provider profile page
