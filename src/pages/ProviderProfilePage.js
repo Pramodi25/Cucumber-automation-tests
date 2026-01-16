@@ -22,6 +22,26 @@ class ProviderProfilePage {
         this.btnHistory = page.locator(
             'xpath=//*[@id="rounded-lg"]/div/div/div[1]/div/div/a'
         );
+
+        // ✅ Profile page "Update" button/link
+        this.profileUpdateLink = page.locator(
+            'xpath=//*[@id="rounded-lg"]/div/div/div[2]/div[3]/a'
+        );
+
+        // ✅ Edit page fields
+        this.firstNameInput = page.locator('xpath=//*[@id="id_first_name"]');
+        this.lastNameInput = page.locator('xpath=//*[@id="id_last_name"]');
+
+        // ✅ Edit page Update button
+        this.editUpdateBtn = page.locator(
+            'xpath=//*[@id="rounded-lg"]/div/div/div/form/button[1]'
+        );
+
+        // ✅ Name input on profile page (your screenshot shows a Name field input)
+        // If this selector doesn't match your DOM, tell me the exact xpath for the Name field.
+        this.profileNameInput = page.locator(
+            'xpath=//*[@id="rounded-lg"]//label[normalize-space()="Name"]/following::input[1]'
+        );
     }
 
     async waitForLoaded() {
@@ -34,77 +54,90 @@ class ProviderProfilePage {
         await expect(this.anyProfileMarker).toBeVisible({timeout: 60000});
     }
 
-    async assertTopNavLinks(providerId) {
-        const checks = [
-            {
-                name: "Compliance",
-                locator: this.btnCompliance,
-                expectedUrl: `https://dev.dashboard.chekku.au/staff/compliance_item_check/${providerId}`,
-            },
-            {
-                name: "Opportunities",
-                locator: this.btnOpportunities,
-                expectedUrl: `https://dev.dashboard.chekku.au/staff/provider_opportunities/${providerId}`,
-            },
-            {
-                name: "Subscription",
-                locator: this.btnSubscription,
-                expectedUrl: `https://dev.dashboard.chekku.au/subscription/staff_subscription/${providerId}`,
-            },
-            {
-                name: "Notes",
-                locator: this.btnNotes,
-                expectedUrl: `https://dev.dashboard.chekku.au/staff/staff_notes_list/${providerId}`,
-            },
-            {
-                name: "History",
-                locator: this.btnHistory,
-                expectedUrl: `https://dev.dashboard.chekku.au/staff/provider_history/${providerId}`,
-            },
-        ];
+    async getProviderIdFromUrl() {
+        const url = this.page.url();
+        const m = url.match(/\/staff\/provider_profile\/(\d+)/);
+        if (!m) throw new Error(`Could not extract providerId from URL: ${url}`);
+        return m[1];
+    }
 
-        // Always come back by directly going to profile URL (no reliance on history)
+    async clickProfileUpdate() {
+        await expect(this.profileUpdateLink).toBeVisible({ timeout: 60000 });
+
+        // click and wait until edit page is opened
+        await Promise.all([
+            this.page.waitForURL("**/staff/update_provider_basic_info/**", {
+                timeout: 60000,
+                waitUntil: "domcontentloaded",
+            }),
+            this.profileUpdateLink.click(),
+        ]);
+
+        await expect(this.firstNameInput).toBeVisible({ timeout: 60000 });
+    }
+
+    async updateFirstAndLastName(firstName, lastName) {
+        await expect(this.firstNameInput).toBeVisible({ timeout: 60000 });
+        await expect(this.lastNameInput).toBeVisible({ timeout: 60000 });
+
+        // ✅ clear then type
+        await this.firstNameInput.fill("");
+        await this.firstNameInput.type(firstName);
+
+        await this.lastNameInput.fill("");
+        await this.lastNameInput.type(lastName);
+
+        await Promise.all([
+            // after update it usually redirects back to profile page
+            this.page.waitForURL("**/staff/provider_profile/**", {
+                timeout: 60000,
+                waitUntil: "domcontentloaded",
+            }),
+            this.editUpdateBtn.click(),
+        ]);
+
+        await this.waitForLoaded();
+    }
+
+    async assertProfileName(fullName) {
+        // ✅ Most stable: page heading
+        const heading = this.page.getByRole("heading", {
+            name: new RegExp(`Profile Overview\\s*:\\s*${fullName}$`, "i"),
+        });
+
+        await expect(heading).toBeVisible({ timeout: 60000 });
+    }
+
+    async assertTopNavLinks(providerId) {
         const profileUrl = `https://dev.dashboard.chekku.au/staff/provider_profile/${providerId}`;
 
+        const checks = [
+            { locator: this.btnCompliance, expectedUrl: `https://dev.dashboard.chekku.au/staff/compliance_item_check/${providerId}` },
+            { locator: this.btnOpportunities, expectedUrl: `https://dev.dashboard.chekku.au/staff/provider_opportunities/${providerId}` },
+            { locator: this.btnSubscription, expectedUrl: `https://dev.dashboard.chekku.au/subscription/staff_subscription/${providerId}` },
+            { locator: this.btnNotes, expectedUrl: `https://dev.dashboard.chekku.au/staff/staff_notes_list/${providerId}` },
+            { locator: this.btnHistory, expectedUrl: `https://dev.dashboard.chekku.au/staff/provider_history/${providerId}` },
+        ];
+
         for (const c of checks) {
-            await this.page.goto(profileUrl, {waitUntil: "domcontentloaded"});
+            // Always start from profile page (reliable)
+            await this.page.goto(profileUrl, { waitUntil: "domcontentloaded" });
             await this.waitForLoaded();
 
             await c.locator.scrollIntoViewIfNeeded();
 
-            // detect if link opens a new tab
-            const target = await c.locator.getAttribute("target");
+            await Promise.all([
+                this.page.waitForURL(c.expectedUrl, { timeout: 60000, waitUntil: "domcontentloaded" }),
+                c.locator.click(),
+            ]);
 
-            if (target === "_blank") {
-                const [newPage] = await Promise.all([
-                    this.page.context().waitForEvent("page"),
-                    c.locator.click(),
-                ]);
-
-                await newPage.waitForLoadState("domcontentloaded");
-                await expect(newPage).toHaveURL(c.expectedUrl);
-
-                await newPage.close();
-            } else {
-                await Promise.all([
-                    this.page.waitForURL(c.expectedUrl, {
-                        timeout: 60000,
-                        waitUntil: "domcontentloaded",
-                    }),
-                    c.locator.click(),
-                ]);
-
-                await expect(this.page).toHaveURL(c.expectedUrl);
-            }
-
-            // optional: small pause so you can visually see it in headed mode
-            await this.page.waitForTimeout(700);
+            await expect(this.page).toHaveURL(c.expectedUrl);
         }
 
-        // finish back on profile page
-        await this.page.goto(profileUrl, {waitUntil: "domcontentloaded"});
+        // end back on profile
+        await this.page.goto(profileUrl, { waitUntil: "domcontentloaded" });
         await this.waitForLoaded();
     }
 }
 
-    module.exports = { ProviderProfilePage };
+module.exports = { ProviderProfilePage };

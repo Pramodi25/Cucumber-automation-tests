@@ -62,3 +62,16 @@ Feature: Providers navigation
       And I open provider profile for "john.smith"
       Then I should see the Provider profile page
       Then provider profile top buttons should navigate correctly
+
+    @profile
+     Scenario: Staff can update provider first and last name
+       Given I am on the Chekku login screen
+       When I login with staff user
+       And I click Providers from the sidebar
+       Then I should see the Providers page
+       When I search provider name "john.smith"
+       And I open provider profile for "john.smith"
+       Then I should see the Provider profile page
+       When I click update button on provider profile
+       And I update provider first name to "Malik" and last name to "Silva"
+       Then I should see updated provider name "Malik Silva" on profile page

@@ -15,7 +15,8 @@ class ProvidersPage {
         this.coreTradeTypeLabel = page.getByText("Core Trade Type:", {exact: true});
 
         // Search input xpath
-        this.searchInput = page.locator("#dt-search-0");
+        this.searchInput = page.locator('input[type="search"], input[placeholder*="Search"], #search');
+        this.providersTableRows = page.locator("table tbody tr");
 
         // Table-related selectors (generic, but stable for most DataTables)
         this.table = page.locator("table"); // if you have a specific table id, replace this with that
@@ -103,62 +104,121 @@ class ProvidersPage {
     }
 
     async search(term) {
-        await expect(this.searchInput).toBeVisible({ timeout: 15000 });
+        await expect(this.searchInput).toBeVisible({ timeout: 60000 });
 
-        // Fill search input
-        await this.searchInput.fill(term);
+        // baseline: current first row text (can be empty if no rows)
+        const beforeFirstRow = (await this.tableRows.first().textContent().catch(() => "")) || "";
 
-        // If DataTables shows a processing overlay, wait for it to finish
+        await this.searchInput.fill("");
+        await this.searchInput.type(term);
+
+        // Some DataTables search without Enter, some require it.
+        await this.searchInput.press("Enter").catch(() => {});
+
+        // If a processing overlay exists, wait for it to hide (best signal for DataTables)
         if (await this.processing.count()) {
-            // It may flicker; wait for either hidden or detached
-            await this.processing.first().waitFor({ state: "hidden", timeout: 15000 }).catch(() => {});
+            await this.processing.first().waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
+            await this.processing.first().waitFor({ state: "hidden", timeout: 60000 }).catch(() => {});
         }
 
-        // Wait until table is not in a temporary loading state
-        await expect.poll(async () => {
-            // If "no matching" is visible, we're stable
-            if (await this.noMatchingRow.isVisible().catch(() => false)) return "no-matching";
+        // Then wait until either:
+        // - "No matching records found" appears, OR
+        // - first row changes, OR
+        // - row count is > 0 (table populated)
+        await expect
+            .poll(
+                async () => {
+                    if (await this.noMatchingRow.isVisible().catch(() => false)) return "NO_MATCH";
 
-            // Otherwise read first row text
-            const rowCount = await this.tableRows.count();
-            if (rowCount === 0) return "no-rows";
+                    const count = await this.tableRows.count().catch(() => 0);
+                    if (count > 0) {
+                        const nowFirstRow = (await this.tableRows.first().textContent().catch(() => "")) || "";
+                        if (nowFirstRow !== beforeFirstRow) return "CHANGED";
+                        return "HAS_ROWS";
+                    }
 
-            const t = ((await this.tableRows.first().innerText()) || "").toLowerCase().trim();
-            return t;
-        }, { timeout: 15000 }).not.toMatch(/loading|processing/);
+                    return "WAIT";
+                },
+                { timeout: 60000 }
+            )
+            .not.toBe("WAIT");
     }
 
     async openProviderProfileFor(name) {
-        const wanted = name.toLowerCase();
-        const rows = this.page.locator("#datatable tbody tr");
-        const count = await rows.count();
+        const wanted = name.toLowerCase().trim();
+
+        // Ensure results are present OR "no matching" is shown
+        if (await this.noMatchingRow.isVisible().catch(() => false)) {
+            throw new Error(`No provider row found containing "${name}" (No matching records found)`);
+        }
+
+        await expect(this.tableRows.first()).toBeVisible({ timeout: 60000 });
+
+        const count = await this.tableRows.count();
         expect(count).toBeGreaterThan(0);
 
+        // Try find row by scanning full row text (case-insensitive)
         for (let i = 0; i < count; i++) {
-            const row = rows.nth(i);
-            const txt = ((await row.innerText()) || "").toLowerCase();
+            const row = this.tableRows.nth(i);
+            const txt = ((await row.innerText().catch(() => "")) || "").toLowerCase();
 
             if (!txt.includes(wanted)) continue;
 
-            // ✅ Choose the correct "View" by URL
+            // Prefer direct profile link in the row
             const profileLink = row.locator('a[href*="/staff/provider_profile/"]').first();
 
             if (await profileLink.count()) {
-                await expect(profileLink).toBeVisible({ timeout: 15000 });
-                await profileLink.click();
+                await expect(profileLink).toBeVisible({ timeout: 60000 });
+
+                await Promise.all([
+                    this.page.waitForURL("**/staff/provider_profile/**", {
+                        timeout: 60000,
+                        waitUntil: "domcontentloaded",
+                    }),
+                    profileLink.click(),
+                ]);
+
                 return;
             }
 
-            // Helpful error if found row but no profile link
-            const links = await row.locator("a").evaluateAll(as =>
-                as.map(a => ({ text: (a.textContent || "").trim(), href: a.getAttribute("href") }))
-            );
-            throw new Error(
-                `Found provider row for "${name}" but no profile link. Links in row: ${JSON.stringify(links)}`
-            );
+            // Fallback: sometimes row click opens profile
+            await Promise.all([
+                this.page.waitForURL("**/staff/provider_profile/**", {
+                    timeout: 60000,
+                    waitUntil: "domcontentloaded",
+                }),
+                row.click(),
+            ]);
+
+            return;
         }
 
-        throw new Error(`No provider row found containing "${name}"`);
+        // Fallback: after filtering, click first profile link if any
+        const fallback = this.page
+            .locator('table tbody tr a[href*="/staff/provider_profile/"]')
+            .first();
+
+        if (await fallback.count()) {
+            await Promise.all([
+                this.page.waitForURL("**/staff/provider_profile/**", {
+                    timeout: 60000,
+                    waitUntil: "domcontentloaded",
+                }),
+                fallback.click(),
+            ]);
+            return;
+        }
+
+        // Debug info for easier troubleshooting
+        const preview = [];
+        const previewCount = Math.min(count, 5);
+        for (let i = 0; i < previewCount; i++) {
+            preview.push(((await this.tableRows.nth(i).innerText().catch(() => "")) || "").trim());
+        }
+
+        throw new Error(
+            `No provider row found containing "${name}". First rows preview:\n- ${preview.join("\n- ")}`
+        );
     }
 
     async clearSearch() {

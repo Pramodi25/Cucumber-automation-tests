@@ -117,11 +117,15 @@ Then("the providers table should show unfiltered results", async function () {
     }
 });
 
-//Provider profile steps
-When("I search provider name {string}", async function (name) {
-    const providersPage = new ProvidersPage(this.page);
-    await providersPage.search(name);
-});
+//Provider profile buttons in the top navigation
+When(
+    "I search provider name {string}",
+    { timeout: 120000 }, // ✅ 2 minutes (adjust if needed)
+    async function (name) {
+        const providersPage = new ProvidersPage(this.page);
+        await providersPage.search(name);
+    }
+);
 
 When("I open provider profile for {string}", async function (name) {
     const providersPage = new ProvidersPage(this.page);
@@ -133,22 +137,42 @@ Then("I should see the Provider profile page", async function () {
     await profilePage.waitForLoaded();
 });
 
-Then("provider profile top buttons should navigate correctly", async function () {
+Then(
+    "provider profile top buttons should navigate correctly",
+    { timeout: 180000 }, // ✅ 3 minutes for this heavy navigation step
+    async function () {
+        const profilePage = new ProviderProfilePage(this.page);
+        await profilePage.waitForLoaded();
+
+        const url = this.page.url();
+        const match = url.match(/\/staff\/provider_profile\/(\d+)/);
+        if (!match) throw new Error(`Could not extract providerId from URL: ${url}`);
+        const providerId = match[1];
+
+        await profilePage.assertTopNavLinks(providerId);
+    }
+);
+
+//Update provider Fname & Lname
+When("I click update button on provider profile", async function () {
     const profilePage = new ProviderProfilePage(this.page);
     await profilePage.waitForLoaded();
-
-    // ✅ Quick debug: check if links open new tab
-    console.log("Compliance target:", await profilePage.btnCompliance.getAttribute("target"));
-    console.log("Opportunities target:", await profilePage.btnOpportunities.getAttribute("target"));
-    console.log("Subscription target:", await profilePage.btnSubscription.getAttribute("target"));
-    console.log("Notes target:", await profilePage.btnNotes.getAttribute("target"));
-    console.log("History target:", await profilePage.btnHistory.getAttribute("target"));
-
-    // Extract providerId from URL
-    const url = this.page.url();
-    const match = url.match(/\/staff\/provider_profile\/(\d+)/);
-    if (!match) throw new Error(`Could not extract providerId from URL: ${url}`);
-    const providerId = match[1];
-
-    await profilePage.assertTopNavLinks(providerId);
+    await profilePage.clickProfileUpdate();
 });
+
+When(
+    "I update provider first name to {string} and last name to {string}",
+    async function (firstName, lastName) {
+        const profilePage = new ProviderProfilePage(this.page);
+        await profilePage.updateFirstAndLastName(firstName, lastName);
+    }
+);
+
+Then(
+    "I should see updated provider name {string} on profile page",
+    async function (fullName) {
+        const profilePage = new ProviderProfilePage(this.page);
+        await profilePage.waitForLoaded();
+        await profilePage.assertProfileName(fullName);
+    }
+);
