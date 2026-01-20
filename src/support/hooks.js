@@ -1,5 +1,6 @@
 const { Before, After, setDefaultTimeout, Status } = require("@cucumber/cucumber");
 const { chromium } = require("playwright");
+const { RegistrationPage } = require("../pages/RegistrationPage");
 
 setDefaultTimeout(60 * 1000); // 60 seconds
 
@@ -8,6 +9,7 @@ Before(async function () {
     this.browser = await chromium.launch({ headless });
     this.context = await this.browser.newContext();
     this.page = await this.context.newPage();
+    this.registrationPage = new RegistrationPage(this.page);
 });
 
 After(async function (scenario) {
