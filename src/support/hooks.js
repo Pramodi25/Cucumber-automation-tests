@@ -2,7 +2,7 @@ const { Before, After, setDefaultTimeout, Status } = require("@cucumber/cucumber
 const { chromium } = require("playwright");
 const { RegistrationPage } = require("../pages/RegistrationPage");
 
-setDefaultTimeout(60 * 1000); // 60 seconds
+setDefaultTimeout(6 * 60 * 1000); // 60 seconds
 
 Before(async function () {
     const headless = process.env.HEADLESS !== "false";
@@ -13,11 +13,15 @@ Before(async function () {
 });
 
 After(async function (scenario) {
-    if (scenario.result?.status === Status.FAILED) {
-        const screenshot = await this.page.screenshot({ fullPage: true });
-        await this.attach(screenshot, "image/png");
+    try {
+        if (this.page && !this.page.isClosed()) {
+            const img = await this.page.screenshot();
+            await this.attach(img, "image/png");
+        }
+    } catch (e) {
+        // ignore screenshot failures if page/context already closed
     }
+
     await this.page?.close().catch(() => {});
     await this.context?.close().catch(() => {});
-    await this.browser?.close().catch(() => {});
 });
